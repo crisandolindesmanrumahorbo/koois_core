@@ -42,12 +42,16 @@ func main() {
 
 	// Initialize handlers
 	userHandler := handler.NewUserHandler(userService)
+	fileHandler := handler.FileHandler{}
 
 	// Setup router
 	router := http.NewServeMux()
 
 	// Public routes
 	router.HandleFunc("GET /api/users", userHandler.GetAll)
+	router.HandleFunc("POST /api/upload", fileHandler.Create)
+	router.HandleFunc("DELETE /api/upload/{id}", fileHandler.Delete)
+
 	// router.HandleFunc("GET /api/users/{id}", userHandler.GetByID)
 	//
 	// // Protected routes with JWT middleware
