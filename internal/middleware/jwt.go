@@ -1,23 +1,55 @@
 package middleware
 
 import (
-	"net/http"
-	"os"
-	"strings"
-
+	"context"
+	"fmt"
 	"github.com/golang-jwt/jwt/v5"
+	"koois_core/internal/config"
+	"net/http"
+	"strings"
 )
 
-func JWT(next http.HandlerFunc) http.HandlerFunc {
+type Claims struct {
+	Username string `json:"username"`
+	Sub      string `json:"sub"`
+	RoleId   int    `json:"role_id"`
+	jwt.RegisteredClaims
+}
+
+type contextKey string
+
+const (
+	ClaimsContextKey contextKey = "claims"
+)
+
+func GetClaimsFromContext(r *http.Request) (*Claims, error) {
+	claims, ok := r.Context().Value(ClaimsContextKey).(*Claims)
+	if !ok {
+		return nil, fmt.Errorf("claims not found in context")
+	}
+	return claims, nil
+}
+
+func JWT(next http.HandlerFunc, cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tokenString := extractToken(r)
 		if tokenString == "" {
 			http.Error(w, `{"error":"missing token"}`, http.StatusUnauthorized)
 			return
 		}
+		publicKeyStr := strings.ReplaceAll(cfg.JWT.Secret, "\\n", "\n")
+		publicKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(publicKeyStr))
+		if err != nil {
+			http.Error(w, `{"error":"invalid env"}`, http.StatusUnauthorized)
+			return
+		}
 
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			return []byte(os.Getenv("JWT_SECRET")), nil
+		claims := &Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return publicKey, nil
 		})
 
 		if err != nil || !token.Valid {
@@ -25,7 +57,10 @@ func JWT(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		next(w, r)
+		// Add claims to request context
+		ctx := context.WithValue(r.Context(), ClaimsContextKey, claims)
+
+		next(w, r.WithContext(ctx))
 	}
 }
 func extractToken(r *http.Request) string {

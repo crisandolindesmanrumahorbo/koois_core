@@ -13,7 +13,7 @@ import (
 	"koois_core/internal/config"
 	"koois_core/internal/db"
 	"koois_core/internal/handler"
-	// "koois_core/internal/middleware"
+	"koois_core/internal/middleware"
 	"koois_core/internal/service"
 )
 
@@ -48,9 +48,9 @@ func main() {
 	router := http.NewServeMux()
 
 	// Public routes
-	router.HandleFunc("GET /api/users", userHandler.GetAll)
-	router.HandleFunc("POST /api/upload", fileHandler.Create)
-	router.HandleFunc("DELETE /api/upload/{id}", fileHandler.Delete)
+	router.HandleFunc("GET /api/users", middleware.JWT(userHandler.GetAll, cfg))
+	router.HandleFunc("POST /api/upload", middleware.JWT(fileHandler.Create, cfg))
+	router.HandleFunc("DELETE /api/upload/{id}", middleware.JWT(fileHandler.Delete, cfg))
 
 	// router.HandleFunc("GET /api/users/{id}", userHandler.GetByID)
 	//

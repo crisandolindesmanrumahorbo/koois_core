@@ -2,12 +2,14 @@ package handler
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"io"
+	"koois_core/internal/middleware"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 type FileHandler struct{}
@@ -15,7 +17,13 @@ type FileHandler struct{}
 const uploadDir = "./upload/tmp"
 
 func (_ *FileHandler) Create(w http.ResponseWriter, r *http.Request) {
-	userId := "1"
+	claims, err := middleware.GetClaimsFromContext(r)
+	if err != nil {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+	userId := claims.Sub
+
 	file, handler, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, "Error get file", http.StatusBadRequest)
@@ -67,7 +75,12 @@ func cleanAndValidatePath(input string, userId string) (string, error) {
 }
 
 func (_ *FileHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	userId := "1"
+	claims, err := middleware.GetClaimsFromContext(r)
+	if err != nil {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+	userId := claims.Sub
 
 	filename := r.PathValue("id")
 
