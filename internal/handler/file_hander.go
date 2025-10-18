@@ -2,14 +2,12 @@ package handler
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"io"
-	"koois_core/internal/middleware"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/google/uuid"
 )
 
 type FileHandler struct{}
@@ -17,13 +15,6 @@ type FileHandler struct{}
 const uploadDir = "./upload/tmp"
 
 func (_ *FileHandler) Create(w http.ResponseWriter, r *http.Request) {
-	claims, err := middleware.GetClaimsFromContext(r)
-	if err != nil {
-		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
-		return
-	}
-	userId := claims.Sub
-
 	file, handler, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, "Error get file", http.StatusBadRequest)
@@ -41,7 +32,7 @@ func (_ *FileHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filename := uuid.New().String() + filepath.Ext(handler.Filename)
-	uploadDir := fmt.Sprintf("%s/%s", uploadDir, userId)
+	uploadDir := fmt.Sprintf("%s", uploadDir)
 
 	file.Seek(0, 0)
 	os.MkdirAll(uploadDir, os.ModePerm)
@@ -62,11 +53,11 @@ func (_ *FileHandler) Create(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, filename)
 }
 
-func cleanAndValidatePath(input string, userId string) (string, error) {
+func cleanAndValidatePath(input string) (string, error) {
 	cleaned := strings.TrimPrefix(input, "/")
 	cleaned = filepath.Clean(cleaned)
 	absUploadDir, _ := filepath.Abs(uploadDir)
-	uploadDir := fmt.Sprintf("%s/%s", uploadDir, userId)
+	uploadDir := fmt.Sprintf("%s", uploadDir)
 	absTarget, _ := filepath.Abs(filepath.Join(uploadDir, cleaned))
 	if !strings.HasPrefix(absTarget, absUploadDir) {
 		return "", fmt.Errorf("invalid path")
@@ -75,16 +66,8 @@ func cleanAndValidatePath(input string, userId string) (string, error) {
 }
 
 func (_ *FileHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	claims, err := middleware.GetClaimsFromContext(r)
-	if err != nil {
-		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
-		return
-	}
-	userId := claims.Sub
-
 	filename := r.PathValue("id")
-
-	safePath, err := cleanAndValidatePath(filename, userId)
+	safePath, err := cleanAndValidatePath(filename)
 	if err != nil {
 		http.Error(w, "Error validate path", http.StatusBadRequest)
 		return
