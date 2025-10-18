@@ -39,9 +39,11 @@ func main() {
 
 	// Initialize services
 	userService := service.NewUserService(pool)
+	quizService := service.NewQuizService(pool)
 
 	// Initialize handlers
 	userHandler := handler.NewUserHandler(userService)
+	quizHandler := handler.NewQuizHandler(quizService)
 	fileHandler := handler.FileHandler{}
 
 	// Setup router
@@ -51,6 +53,7 @@ func main() {
 	router.HandleFunc("GET /api/users", middleware.JWT(userHandler.GetAll, cfg))
 	router.HandleFunc("POST /api/upload", middleware.JWT(fileHandler.Create, cfg))
 	router.HandleFunc("DELETE /api/upload/{id}", middleware.JWT(fileHandler.Delete, cfg))
+	router.HandleFunc("GET /api/quiz/{id}", middleware.JWT(quizHandler.GetByID, cfg))
 
 	// router.HandleFunc("GET /api/users/{id}", userHandler.GetByID)
 	//

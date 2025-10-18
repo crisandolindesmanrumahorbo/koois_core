@@ -12,14 +12,3 @@ type User struct {
 	Password  string         `json:"-"`
 	CreatedAt time.Time      `json:"created_at"`
 }
-
-type CreateUserReq struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-type UpdateUserReq struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
-}
