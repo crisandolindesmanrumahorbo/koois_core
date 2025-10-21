@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"koois_core/internal/model"
@@ -65,12 +66,88 @@ func (s *QuizService) GetQuizQuestions(ctx context.Context, quizID int) ([]*mode
 }
 
 func (s *QuizService) Create(ctx context.Context, quizReq model.CreateQuizReq, authorId int) (int, error) {
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
 	var quizID int
-	err := s.db.QueryRow(ctx,
+	err = tx.QueryRow(ctx,
 		`INSERT INTO quizzes (title, description, author_id) VALUES ($1, $2, $3) RETURNING id`,
-		quizReq.Title, quizReq.Description,
-	).Scan(&quizID, &authorId)
+		quizReq.Title, quizReq.Description, authorId,
+	).Scan(&quizID)
 	if err != nil {
 		return 0, fmt.Errorf("insert quiz: %w", err)
 	}
+	type BareQuestion struct {
+		QuestionText string  `json:"question_text"`
+		QuestionType string  `json:"question_type"`
+		ImageUrl     *string `json:"image_url"`
+	}
+	var bare []BareQuestion
+	for _, q := range quizReq.Questions {
+		bare = append(bare, BareQuestion{QuestionText: q.QuestionText, QuestionType: q.QuestionType, ImageUrl: q.ImageUrl})
+	}
+	qJSON, _ := json.Marshal(bare)
+
+	rows, err := tx.Query(ctx, `
+		INSERT INTO questions (quiz_id, question_text, question_type, image_url)
+		SELECT $1, q.question_text, q.question_type, q.image_url
+		FROM jsonb_to_recordset($2::jsonb) AS q(question_text TEXT, question_type TEXT, image_url TEXT)
+		RETURNING id;
+	`, quizID, string(qJSON))
+	if err != nil {
+		return 0, fmt.Errorf("insert questions: %w", err)
+	}
+	defer rows.Close()
+
+	var questionIDs []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return 0, err
+		}
+		questionIDs = append(questionIDs, id)
+	}
+	println(len(questionIDs), " dibadning ", len(quizReq.Questions))
+	if len(questionIDs) != len(quizReq.Questions) {
+		return 0, errors.New("mismatch between inserted question IDs and input count")
+	}
+
+	type FlatOption struct {
+		QuestionID int     `json:"question_id"`
+		OptionText *string `json:"option_text"`
+		IsCorrect  bool    `json:"is_correct"`
+		ImageUrl   *string `json:"image_url"`
+	}
+	var flat []FlatOption
+	for i, q := range quizReq.Questions {
+		for _, opt := range q.Options {
+			flat = append(flat, FlatOption{
+				QuestionID: questionIDs[i],
+				OptionText: opt.OptionText,
+				IsCorrect:  opt.IsCorrect,
+				ImageUrl:   opt.ImageUrl,
+			})
+		}
+	}
+
+	if len(flat) > 0 {
+		optJSON, _ := json.Marshal(flat)
+		_, err = tx.Exec(ctx, `
+			INSERT INTO question_options (question_id, option_text, is_correct, image_url)
+			SELECT o.question_id, o.option_text, o.is_correct, o.image_url
+			FROM jsonb_to_recordset($1::jsonb)
+			AS o(question_id INT, option_text TEXT, is_correct BOOL, image_url TEXT);
+		`, string(optJSON))
+		if err != nil {
+			return 0, fmt.Errorf("insert options: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+
+	return quizID, nil
 }

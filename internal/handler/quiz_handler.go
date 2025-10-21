@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"encoding/json"
+	"koois_core/internal/middleware"
+	"koois_core/internal/model"
 	"koois_core/internal/service"
 	"net/http"
 	"strconv"
@@ -33,4 +36,31 @@ func (h *QuizHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, quizzes)
+}
+
+func (h *QuizHandler) Create(w http.ResponseWriter, r *http.Request) {
+	claims, err := middleware.GetClaimsFromContext(r)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, `{"error":"unauthorized"}`)
+		return
+	}
+	userId := claims.Sub
+	id, err := strconv.Atoi(userId)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "Invalid token")
+		return
+	}
+	var req model.CreateQuizReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	quizzes, err := h.service.Create(r.Context(), req, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, quizzes)
 }

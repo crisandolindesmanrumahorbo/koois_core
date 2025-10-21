@@ -54,13 +54,7 @@ func main() {
 	router.HandleFunc("POST /api/upload", middleware.JWT(fileHandler.Create, cfg))
 	router.HandleFunc("DELETE /api/upload/{id}", middleware.JWT(fileHandler.Delete, cfg))
 	router.HandleFunc("GET /api/quiz/{id}", middleware.JWT(quizHandler.GetByID, cfg))
-
-	// router.HandleFunc("GET /api/users/{id}", userHandler.GetByID)
-	//
-	// // Protected routes with JWT middleware
-	// router.HandleFunc("POST /api/users", middleware.JWT(userHandler.Create))
-	// router.handlefunc("put /api/users/{id}", middleware.jwt(userhandler.update))
-	// router.handlefunc("delete /api/users/{id}", middleware.jwt(userhandler.delete))
+	router.HandleFunc("POST /api/quiz", middleware.JWT(quizHandler.Create, cfg))
 
 	// Health check
 	router.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {

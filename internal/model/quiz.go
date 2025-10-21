@@ -85,11 +85,11 @@ type CreateQuestionReq struct {
 	QuestionText string                 `json:"question_text"`
 	QuestionType string                 `json:"question_type"`
 	ImageUrl     *string                `json:"image_url"`
-	Options      []CreateQuestionOption `json:"question_options"`
+	Options      []CreateQuestionOption `json:"options"`
 }
 
 type CreateQuestionOption struct {
-	OptionText string  `json:"option_text"`
+	OptionText *string `json:"option_text"`
 	IsCorrect  bool    `json:"is_correct"`
 	ImageUrl   *string `json:"image_url"`
 }
