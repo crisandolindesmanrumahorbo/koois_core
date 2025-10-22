@@ -35,7 +35,6 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           source: ./koois_core
           target: /home/deploy/backend/git_action/koois_core/
-          overwrite: true
 
       - name: Restart systemd service
         uses: appleboy/ssh-action@v1.2.0
