@@ -20,9 +20,11 @@ jobs:
 
       - name: Build binary
         run: |
-          go mod tidy
-          GOOS=linux GOARCH=amd64 go build -o koois_core .
-
+          cd cmd/koois_core
+           go mod tidy
+           GOOS=linux GOARCH=amd64 go build -o ../../koois_core
+           cd ../../
+           ls -lh koois_core
       - name: Verify binary
         run: ls -lh ./koois_core
 
