@@ -1,0 +1,52 @@
+name: Deploy Koois Core Go App
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.9"
+
+      - name: Build binary
+        run: |
+          go mod tidy
+          GOOS=linux GOARCH=amd64 go build -o koois_core .
+
+      - name: Verify binary
+        run: ls -lh ./koois_core
+
+      - name: Upload binary to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.VPS_PORT || '22' }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: ./koois_core
+          target: /home/deploy/backend/git_action/koois_core/
+          overwrite: true
+
+      - name: Restart systemd service
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.VPS_PORT || '22' }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            chmod +x /home/deploy/backend/git_action/koois_core/koois_core
+            sudo systemctl restart koois_core
+            sudo systemctl status koois_core --no-pager -l
+            echo "✅ Go service restarted successfully!"

@@ -109,7 +109,6 @@ func (s *QuizService) Create(ctx context.Context, quizReq model.CreateQuizReq, a
 		}
 		questionIDs = append(questionIDs, id)
 	}
-	println(len(questionIDs), " dibadning ", len(quizReq.Questions))
 	if len(questionIDs) != len(quizReq.Questions) {
 		return 0, errors.New("mismatch between inserted question IDs and input count")
 	}
