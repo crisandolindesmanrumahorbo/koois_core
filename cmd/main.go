@@ -70,11 +70,12 @@ func main() {
 		w.Write([]byte(`{"error":"route not found"}`))
 	})
 
+	handler := middleware.CorsMiddleware(router)
 	// Server setup
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	server := &http.Server{
 		Addr:         addr,
-		Handler:      router,
+		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
